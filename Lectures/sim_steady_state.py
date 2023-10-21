@@ -28,6 +28,20 @@ def discretize_assets(amin, amax, n_a):
     # double-exponentiate uniform grid and add amin to get grid from amin to amax
     return amin + np.exp(np.exp(u_grid) - 1) - 1
 
+def discretize_assets_single_exp(amin, amax, n_a):
+	# lower bound of exponential grid
+	u_under = 1
+
+	# upper bound of exponential grid
+	u_bar = np.log(1 + amax - amin) + 1
+
+	# linear grid for starter
+	A_lin = np.linspace(u_under, u_bar, n_a) 
+
+	# grid for assets
+	A = amin + np.exp(A_lin - 1) - 1
+
+	return A
 
 def rouwenhorst_Pi(N, p):
     # base case Pi_2

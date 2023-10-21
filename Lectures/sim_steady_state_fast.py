@@ -1,22 +1,9 @@
-"""
-Slightly more advanced code for standard incomplete markets
-model, speeding up sim_steady_state.py.
-
-Built up in "Lecture 1a, Speeding Up the Steady State.ipynb".
-
-See SPEEDUP comments for specific improvements.
-
-Note that some functions have not been changed from their
-previous source code in sim_steady_state.py, but since they
-are calling functions that have been sped up here, we need
-to define them again. These are marked with # NO CHANGE.
-"""
-
 import numpy as np
 import numba
 
 # little need to speed up these functions
-from sim_steady_state import (discretize_assets, rouwenhorst_Pi, forward_iteration,
+from sim_steady_state import (discretize_assets, discretize_assets_single_exp, 
+                              rouwenhorst_Pi, forward_iteration,
                               expectation_iteration, expectation_functions)
 
 """Part 0: example calibration from notebook"""
@@ -99,7 +86,7 @@ def backward_iteration(Va, Pi, a_grid, y, r, beta, eis):
     # step 3: enforcing the borrowing constraint and backing out consumption
     # SPEEDUP: enforce constraint in place, without creating new arrays, stop when unnecessary
     setmin(a, a_grid[0])
-    c = coh - a
+    c = np.maximum(coh - a, 1E-9) # consumption must be strictly positive
     
     # step 4: using the envelope condition to recover the derivative of the value function
     Va = (1+r) * c**(-1/eis)
@@ -110,7 +97,7 @@ def backward_iteration(Va, Pi, a_grid, y, r, beta, eis):
 def policy_ss(Pi, a_grid, y, r, beta, eis, tol=1E-9):
     # initial guess for Va: assume consumption 5% of cash-on-hand, then get Va from envelope condition
     coh = y[:, np.newaxis] + (1+r)*a_grid
-    c = 0.05 * coh
+    c = np.maximum(0.05 * coh, 1E-9) # consumption must be strictly positive
     Va = (1+r) * c**(-1/eis)
     
     # iterate until maximum distance between two iterations falls below tol, fail-safe max of 10,000 iterations
@@ -240,7 +227,7 @@ def distribution_ss(Pi, a, a_grid, tol=1E-10):
     D = pi[:, np.newaxis] * np.ones_like(a_grid) / len(a_grid)
     
     # now iterate until convergence to acceptable threshold
-    for it in range(10_000):
+    for it in range(40_000):
         D_new = forward_iteration(D, Pi, a_i, a_pi)
         # SPEEDUP: only test for convergence every 10 iterations
         # SPEEDUP: use equal_tolerance rather than inefficient NumPy test
